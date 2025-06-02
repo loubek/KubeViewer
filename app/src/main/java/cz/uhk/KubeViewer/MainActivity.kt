@@ -1,7 +1,7 @@
-
 package cz.uhk.KubeViewer
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -11,6 +11,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -29,11 +30,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             FimCalcTheme {
                 Scaffold(
-                    topBar = {
-                        TopAppBar(title = { Text("Kubeconfig Viewer") })
-                    }
+                    topBar = { TopAppBar(title = { Text("Kube Viewer") }) }
                 ) { padding ->
-                    KubeConfigScreen(modifier = Modifier.padding(padding), activity = this)
+                    KubeViewerScreen(modifier = Modifier.padding(padding), activity = this)
                 }
             }
         }
@@ -41,35 +40,33 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun KubeConfigScreen(modifier: Modifier = Modifier, activity: Activity) {
+fun KubeViewerScreen(modifier: Modifier = Modifier, activity: Activity) {
+    val context = activity.applicationContext
+    val sharedPrefs = remember { context.getSharedPreferences("kubeviewer", Context.MODE_PRIVATE) }
+
     var fileName by remember { mutableStateOf<String?>(null) }
-    var fileContent by remember { mutableStateOf<String?>(null) }
+    var fileContent by remember { mutableStateOf<String?>(sharedPrefs.getString("kubeconfig", null)) }
     var apiServer by remember { mutableStateOf<String?>(null) }
     var authToken by remember { mutableStateOf<String?>(null) }
-    var nodeList by remember { mutableStateOf<List<String>?>(null) }
+    var connected by remember { mutableStateOf(false) }
+    var outputList by remember { mutableStateOf<List<Map<String, String>>>(emptyList()) }
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
-        if (uri == null) {
-            Log.e("KUBE", "Soubor nebyl vybrán")
-            return@rememberLauncherForActivityResult
-        }
+        if (uri != null) {
+            try {
+                activity.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                fileName = uri.lastPathSegment
+                val content = readTextFromUri(activity, uri)
+                fileContent = content
+                sharedPrefs.edit().putString("kubeconfig", content).apply()
 
-        try {
-            activity.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            fileName = uri.lastPathSegment
-            val content = readTextFromUri(activity, uri)
-            fileContent = content
-            Log.d("KUBE", "Soubor načten:\n${content.take(300)}")
+                val kubeConfigData = parseKubeConfig(content)
+                apiServer = kubeConfigData?.server
+                authToken = kubeConfigData?.token
 
-            val kubeConfigData = parseKubeConfig(content)
-            apiServer = kubeConfigData?.server
-            authToken = kubeConfigData?.token
-
-            Log.d("KUBE", "API server: $apiServer")
-            Log.d("KUBE", "Token: ${authToken?.take(20)}")
-
-        } catch (e: Exception) {
-            Log.e("KUBE", "Chyba při čtení souboru: ${e.message}", e)
+            } catch (e: Exception) {
+                Log.e("KUBE", "Chyba při načítání: ${e.message}", e)
+            }
         }
     }
 
@@ -77,47 +74,82 @@ fun KubeConfigScreen(modifier: Modifier = Modifier, activity: Activity) {
         modifier = modifier
             .fillMaxSize()
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Button(onClick = {
-            launcher.launch(arrayOf("*/*"))
-        }) {
-            Text("Načíst kubeconfig")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { launcher.launch(arrayOf("*/*")) }) {
+                Text("Načíst nový kubeconfig")
+            }
+            Button(onClick = {
+                fileContent?.let {
+                    val data = parseKubeConfig(it)
+                    apiServer = data?.server
+                    authToken = data?.token
+                }
+            }, enabled = fileContent != null) {
+                Text("Použít předchozí")
+            }
         }
+
+        authToken?.let { Text("Token: ${it.take(20)}...") }
+        apiServer?.let { Text("API server: $it") }
 
         Button(
-            onClick = {
-                if (!apiServer.isNullOrEmpty() && !authToken.isNullOrEmpty()) {
-                    CoroutineScope(Dispatchers.IO).launch {
-                        val result = getNodeNames(apiServer!!, authToken!!)
-                        nodeList = result
-                        Log.d("KUBE", "Výsledek: $result")
-                    }
-                } else {
-                    Log.e("KUBE", "API nebo token chybí")
-                }
-            },
+            onClick = { connected = true },
             enabled = !apiServer.isNullOrEmpty() && !authToken.isNullOrEmpty()
         ) {
-            Text("Zobrazit nody")
+            Text("Připojit")
         }
 
-        fileName?.let {
-            Text("Soubor načten: $it")
-        }
+        if (connected) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val nodes = getNodeNames(apiServer!!, authToken!!)
+                        outputList = nodes
+                    }
+                }) { Text("Node") }
 
-        apiServer?.let {
-            Text("API server: $it")
-        }
+                Button(onClick = {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val pods = getPods(apiServer!!, authToken!!)
+                        outputList = pods
+                    }
+                }) { Text("Pods") }
 
-        authToken?.let {
-            Text("Token: ${it.take(20)}...")
-        }
+                Button(onClick = {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val namespaces = getNamespaces(apiServer!!, authToken!!)
+                        outputList = namespaces
+                    }
+                }) { Text("Namespace") }
 
-        nodeList?.let { list ->
-            Text("Seznam nodů:")
-            list.forEach { name ->
-                Text("- $name")
+                Button(onClick = {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val csrs = getCSRs(apiServer!!, authToken!!)
+                        outputList = csrs
+                    }
+                }) { Text("CSR") }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (outputList.isNotEmpty()) {
+                val headers = outputList.first().keys.toList()
+                LazyColumn {
+                    item {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            headers.forEach { header -> Text(header, modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelLarge) }
+                        }
+                    }
+                    items(outputList.size) { index ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            headers.forEach { key ->
+                                Text(outputList[index][key] ?: "", modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
             }
         }
     }
