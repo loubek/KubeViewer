@@ -8,7 +8,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "cz.uhk.fimcalc"
+        applicationId = "cz.uhk.KubeViewer"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
@@ -63,6 +63,9 @@ dependencies {
     implementation("org.yaml:snakeyaml:2.2")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.json:json:20240303")
+    implementation("androidx.navigation:navigation-compose:2.7.6")
+
+
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "FimCalc"
+rootProject.name = "KubeViewer"
 include(":app")
  

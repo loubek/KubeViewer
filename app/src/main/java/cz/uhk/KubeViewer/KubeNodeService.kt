@@ -7,6 +7,7 @@ import org.json.JSONObject
 import java.time.Duration
 import java.time.Instant
 
+
 suspend fun getNodeNames(server: String, token: String): List<Map<String, String>> =
     fetchKubeItems("$server/api/v1/nodes", token) { item ->
         val meta = item.getJSONObject("metadata")
@@ -65,29 +66,6 @@ suspend fun getPods(server: String, token: String): List<Map<String, String>> =
         )
     }
 
-suspend fun getNamespaces(server: String, token: String): List<Map<String, String>> =
-    fetchKubeItems("$server/api/v1/namespaces", token) { item ->
-        val meta = item.getJSONObject("metadata")
-        val age = calculateAge(meta.optString("creationTimestamp", ""))
-        mapOf("NAME" to meta.getString("name"), "AGE" to age)
-    }
-
-suspend fun getCSRs(server: String, token: String): List<Map<String, String>> =
-    fetchKubeItems("$server/apis/certificates.k8s.io/v1/certificatesigningrequests", token) { item ->
-        val meta = item.getJSONObject("metadata")
-        val status = item.optJSONObject("status")
-        val conds = status?.optJSONArray("conditions")
-        val statusValue = if (conds != null && conds.length() > 0)
-            conds.getJSONObject(0).getString("type")
-        else
-            "Pending"
-        val age = calculateAge(meta.optString("creationTimestamp", ""))
-        mapOf(
-            "NAME" to meta.getString("name"),
-            "STATUS" to statusValue,
-            "AGE" to age
-        )
-    }
 
 private fun calculateAge(creationTimestamp: String): String {
     return try {
@@ -106,6 +84,7 @@ private fun calculateAge(creationTimestamp: String): String {
         "--"
     }
 }
+
 
 private fun fetchKubeItems(
     url: String,

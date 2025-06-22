@@ -1,7 +1,6 @@
-
 package cz.uhk.KubeViewer
 
-import org.yaml.snakeyaml.*
+import org.yaml.snakeyaml.Yaml
 
 data class KubeConfigData(
     val currentContext: String,
