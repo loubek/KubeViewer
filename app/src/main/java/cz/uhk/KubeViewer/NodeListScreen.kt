@@ -34,7 +34,7 @@ fun NodeListScreen(nodes: List<Map<String, String>>) {
                 }
             }
 
-            Divider()
+
 
             nodes.forEach { row ->
                 Row(modifier = Modifier.padding(vertical = 4.dp)) {

@@ -34,7 +34,7 @@ fun PodListScreen(pods: List<Map<String, String>>) {
                 }
             }
 
-            Divider()
+
 
             pods.forEach { row ->
                 Row(modifier = Modifier.padding(vertical = 4.dp)) {

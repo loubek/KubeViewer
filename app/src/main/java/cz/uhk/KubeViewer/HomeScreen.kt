@@ -7,7 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun HomeScreen(onNext: () -> Unit) {
+fun HomeScreen(onNext: () -> Unit, onImagePick: () -> Unit, onCameraPick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -18,6 +18,14 @@ fun HomeScreen(onNext: () -> Unit) {
         Spacer(modifier = Modifier.height(24.dp))
         Button(onClick = onNext) {
             Text("Start")
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Button(onClick = onImagePick) {
+            Text("Nasenovat Kubeconfig")
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Button(onClick = onCameraPick) {
+            Text("Vyfotit Kubeconfig")
         }
     }
 }

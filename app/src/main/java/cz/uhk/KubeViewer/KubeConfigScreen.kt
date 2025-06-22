@@ -86,7 +86,7 @@ fun KubeConfigScreen(
                     CoroutineScope(Dispatchers.IO).launch {
                         val result = getPods(apiServer!!, authToken!!)
                         withContext(Dispatchers.Main) {
-                            onPodsLoaded(result) // 👈 nový callback
+                            onPodsLoaded(result)
                         }
                     }
                 }

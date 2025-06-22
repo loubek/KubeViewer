@@ -3,7 +3,6 @@ package cz.uhk.KubeViewer
 import android.app.Activity
 import androidx.compose.runtime.*
 import androidx.navigation.compose.*
-import androidx.compose.material3.*
 
 @Composable
 fun AppNavigator(activity: Activity) {
@@ -16,7 +15,11 @@ fun AppNavigator(activity: Activity) {
     }
     NavHost(navController, startDestination = "home") {
         composable("home") {
-            HomeScreen(onNext = { navController.navigate("kubeconfig") })
+            HomeScreen(
+                onNext = { navController.navigate("kubeconfig") },
+                onImagePick = { navController.navigate("imagepicker") },
+                onCameraPick = { navController.navigate("camerapicker") }
+            )
         }
         composable("kubeconfig") {
             KubeConfigScreen(
@@ -36,6 +39,12 @@ fun AppNavigator(activity: Activity) {
         }
         composable("pods") {
             PodListScreen(pods)
+        }
+        composable("imagepicker") {
+            ImagePickerScreen()
+        }
+        composable("camerapicker") {
+            CameraCaptureScreen()
         }
     }
 }
